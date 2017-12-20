@@ -72,7 +72,7 @@ __global__ void InteractiveOutputKernel(int width, int height, size_t pitch, con
 template <typename T>
 struct InteractiveNormalsInputFunctor<Eigen::GpuDevice, T> {
 	void operator()(const Eigen::GpuDevice& d, int width, int height, size_t pitch, const void* in, T* out) {
-		dim3 blockSize = dim3(16, 16);
+		dim3 blockSize = dim3(width / 4, height / 4);
 		dim3 threadSize = dim3((width + blockSize.x - 1) / blockSize.x, (height + blockSize.y - 1) / blockSize.y);
 		InteractiveNormalsInputKernel<T><<<blockSize, threadSize>>>(width, height, pitch, (unsigned char *) in, out);
 		cudaError_t err = cudaGetLastError();
@@ -82,7 +82,7 @@ struct InteractiveNormalsInputFunctor<Eigen::GpuDevice, T> {
 template <typename T>
 struct InteractiveDepthInputFunctor<Eigen::GpuDevice, T> {
 	void operator()(const Eigen::GpuDevice& d, int width, int height, size_t pitch, const void* in, T* out) {
-		dim3 blockSize = dim3(16, 16);
+		dim3 blockSize = dim3(width / 4, height / 4);
 		dim3 threadSize = dim3((width + blockSize.x - 1) / blockSize.x, (height + blockSize.y - 1) / blockSize.y);
 		InteractiveDepthInputKernel<T><<<blockSize, threadSize>>>(width, height, pitch, (float *) in, out);
 		cudaError_t err = cudaGetLastError();
@@ -92,7 +92,7 @@ struct InteractiveDepthInputFunctor<Eigen::GpuDevice, T> {
 template <typename T>
 struct InteractiveOutputFunctor<Eigen::GpuDevice, T> {
 	void operator()(const Eigen::GpuDevice& d, int width, int height, size_t pitch, const T* in, void* out) {
-		dim3 blockSize = dim3(16, 16);
+		dim3 blockSize = dim3(width / 4, height / 4);
 		dim3 threadSize = dim3((width + blockSize.x - 1) / blockSize.x, (height + blockSize.y - 1) / blockSize.y);
 		InteractiveOutputKernel<T><<<blockSize, threadSize>>>(width, height, pitch, in, (unsigned char *) out);
 		cudaError_t err = cudaGetLastError();

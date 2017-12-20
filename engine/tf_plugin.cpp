@@ -180,8 +180,8 @@ namespace PLUGIN_NAMESPACE
 		normals_render_target->GetDesc(&desc);
 		session->texture_width = desc.Width;
 		session->texture_height = desc.Height;
-		session->texture_width = NNAO_WIDTH;
-		session->texture_height = NNAO_HEIGHT;
+		//session->texture_width = NNAO_WIDTH;
+		//session->texture_height = NNAO_HEIGHT;
 
 		RtlZeroMemory(&desc, sizeof(D3D11_TEXTURE2D_DESC));
 		desc.Width = session->texture_width;
@@ -399,15 +399,14 @@ namespace PLUGIN_NAMESPACE
 			ID3D11DeviceContext *immediate_context;
 			device->GetImmediateContext(&immediate_context);
 
-			D3D11_BOX sourceRegion;
-			sourceRegion.left = 0;
-			sourceRegion.top = 0;
-			sourceRegion.right = NNAO_WIDTH;
-			sourceRegion.bottom = NNAO_HEIGHT;
-			sourceRegion.front = 0;
-			sourceRegion.back = 1;
-			immediate_context->CopySubresourceRegion(session->input_texture, 0, 0, 0, 0, normals_render_target, 0, &sourceRegion);
-			immediate_context->Flush();
+			//D3D11_BOX sourceRegion;
+			//sourceRegion.left = 0;
+			//sourceRegion.top = 0;
+			//sourceRegion.right = NNAO_WIDTH;
+			//sourceRegion.bottom = NNAO_HEIGHT;
+			//sourceRegion.front = 0;
+			//sourceRegion.back = 1;
+			immediate_context->CopySubresourceRegion(session->input_texture, 0, 0, 0, 0, normals_render_target, 0, nullptr);
 
 			cudaMemcpy2DFromArray(TFCuda::get_input_memory_pointer(), TFCuda::get_pitch(), session->input_array, 0, 0, session->texture_width * sizeof(unsigned char) * NUMBER_OF_CHANNELS, session->texture_height, cudaMemcpyDeviceToDevice);
 			checkCUDAError("cudaMemcpy2DFromArray() failed");
@@ -415,10 +414,6 @@ namespace PLUGIN_NAMESPACE
 			cudaMemcpy2DFromArray(TFCuda::get_depth_memory_pointer(), TFCuda::get_pitch(), session->depth_array, 0, 0, session->texture_width * sizeof(float), session->texture_height, cudaMemcpyDeviceToDevice);
 			checkCUDAError("cudaMemcpy2DFromArray() failed");
 
-			cudaDeviceSynchronize();
-			checkCUDAError("cudaDeviceSynchronize failed");
-
-			// Create input and output data structures and execute tensorflow graph
 			std::vector<std::pair<std::string, tensorflow::Tensor>> inputs = { { "input", *session->zero_input } };
 			std::vector<TF::Tensor> out_tensors;
 
@@ -437,17 +432,13 @@ namespace PLUGIN_NAMESPACE
 				return;
 			}
 
-			cudaDeviceSynchronize();
-			checkCUDAError("cudaDeviceSynchronize failed");
-
 			cudaMemcpy2DToArray(session->output_array, 0, 0, TFCuda::get_output_memory_pointer(), TFCuda::get_pitch(), session->texture_width * NUMBER_OF_CHANNELS * sizeof(unsigned char), session->texture_height, cudaMemcpyDeviceToDevice);
 			checkCUDAError("cudaMemcpy2DToArray failed");
 
 			cudaDeviceSynchronize();
 			checkCUDAError("cudaDeviceSynchronize failed");
 
-			immediate_context->CopySubresourceRegion(nnao_render_target, 0, 0, 0, 0, session->output_texture, 0, &sourceRegion);
-			immediate_context->Flush();
+			immediate_context->CopySubresourceRegion(nnao_render_target, 0, 0, 0, 0, session->output_texture, 0, nullptr);
 			++session->iterations_done;
 
 			if (session->iterations_done >= session->iterations_max)

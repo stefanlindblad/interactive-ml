@@ -21,7 +21,7 @@ append = {
 }
 
 insert_at = {
-	hud = {
+	decals = {
 		layers = [
 			{ resource_generator="interactive_ml" profiling_scope="interactive_ml_plugin" }
 		]
