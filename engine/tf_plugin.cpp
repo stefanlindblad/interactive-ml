@@ -42,15 +42,15 @@ namespace PLUGIN_NAMESPACE
 		unsigned iterations_max;
 		uint32_t override_texture_id;
 		std::string output_node_name;
-		cudaArray *normals_array = nullptr;
+		cudaArray *input_array = nullptr;
 		cudaArray *depth_array = nullptr;
-		cudaArray *ao_array = nullptr;
-		cudaGraphicsResource *normals_resource = nullptr;
-		ID3D11Texture2D *normals_texture = nullptr;
+		cudaArray *output_array = nullptr;
+		cudaGraphicsResource *input_resource = nullptr;
+		ID3D11Texture2D *input_texture = nullptr;
 		cudaGraphicsResource *depth_resource = nullptr;
 		ID3D11Texture2D *depth_texture = nullptr;
-		cudaGraphicsResource *ao_resource = nullptr;
-		ID3D11Texture2D *ao_texture = nullptr;
+		cudaGraphicsResource *output_resource = nullptr;
+		ID3D11Texture2D *output_texture = nullptr;
 		TF::Tensor *zero_input = nullptr;
 		TF::Session *tf_session = nullptr;
 		TF::GraphDef tf_graph;
@@ -157,7 +157,7 @@ namespace PLUGIN_NAMESPACE
 	}
 
 	// Exposed to LUA
-	void TFPlugin::run_tf_graph(const char *texture_name, const char *graph_name, const char *node, unsigned iterations)
+	void TFPlugin::run_tf_graph(const char *graph_name, const char *node, unsigned iterations)
 	{
 		if (normals_render_target == nullptr || depth_render_target == nullptr || nnao_render_target == nullptr)
 		{
@@ -183,14 +183,13 @@ namespace PLUGIN_NAMESPACE
 		desc.Format = DXGI_FORMAT_R8G8B8A8_UINT;
 		desc.SampleDesc.Count = 1;
 		desc.Usage = D3D11_USAGE_DEFAULT;
-		device->CreateTexture2D(&desc, nullptr, &session->normals_texture);
-		device->CreateTexture2D(&desc, nullptr, &session->ao_texture);
-		immediate_context->CopyResource(session->normals_texture, normals_render_target);
+		device->CreateTexture2D(&desc, nullptr, &session->input_texture);
+		device->CreateTexture2D(&desc, nullptr, &session->output_texture);
 
-		cudaGraphicsD3D11RegisterResource(&session->normals_resource, session->normals_texture, cudaGraphicsRegisterFlagsNone);
+		cudaGraphicsD3D11RegisterResource(&session->input_resource, session->input_texture, cudaGraphicsRegisterFlagsNone);
 		checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");
 
-		cudaGraphicsD3D11RegisterResource(&session->ao_resource, session->ao_texture, cudaGraphicsRegisterFlagsNone);
+		cudaGraphicsD3D11RegisterResource(&session->output_resource, session->output_texture, cudaGraphicsRegisterFlagsNone);
 		checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");
 
 		D3D11_TEXTURE2D_DESC depthDesc;
@@ -201,7 +200,6 @@ namespace PLUGIN_NAMESPACE
 		depthDesc.SampleDesc.Count = 1;
 		depthDesc.Usage = D3D11_USAGE_DEFAULT;
 		device->CreateTexture2D(&depthDesc, nullptr, &session->depth_texture);
-		immediate_context->CopyResource(session->depth_texture, depth_render_target);
 
 		cudaGraphicsD3D11RegisterResource(&session->depth_resource, session->depth_texture, cudaGraphicsRegisterFlagsNone);
 		checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");
@@ -232,38 +230,37 @@ namespace PLUGIN_NAMESPACE
 			return;
 		}
 
-		cudaMemset(inputLinearMemory, 1, mainPitch * session->texture_height);
+		cudaMemset(inputLinearMemory, 255, mainPitch * session->texture_height);
 		checkCUDAError("cudaMemset() failed");
-		cudaMemset(depthLinearMemory, 1, mainPitch * session->texture_height);
+		cudaMemset(depthLinearMemory, 255, mainPitch * session->texture_height);
 		checkCUDAError("cudaMemset() failed");
-		cudaMemset(outputLinearMemory, 1, mainPitch * session->texture_height);
+		cudaMemset(outputLinearMemory, 255, mainPitch * session->texture_height);
 		checkCUDAError("cudaMemset() failed");
 
-		cudaGraphicsResourceSetMapFlags(session->normals_resource, cudaGraphicsMapFlagsNone);
+		cudaGraphicsResourceSetMapFlags(session->input_resource, cudaGraphicsMapFlagsNone);
 		checkCUDAError("cudaGraphicsResourceSetMapFlags() failed");
 		cudaGraphicsResourceSetMapFlags(session->depth_resource, cudaGraphicsMapFlagsNone);
 		checkCUDAError("cudaGraphicsResourceSetMapFlags() failed");
-		cudaGraphicsResourceSetMapFlags(session->ao_resource, cudaGraphicsMapFlagsNone);
+		cudaGraphicsResourceSetMapFlags(session->output_resource, cudaGraphicsMapFlagsNone);
 		checkCUDAError("cudaGraphicsResourceSetMapFlags() failed");
-		cudaGraphicsMapResources(1, &session->normals_resource);
+		cudaGraphicsMapResources(1, &session->input_resource);
 		checkCUDAError("cudaGraphicsMapResources() failed");
 		cudaGraphicsMapResources(1, &session->depth_resource);
 		checkCUDAError("cudaGraphicsMapResources() failed");
-		cudaGraphicsMapResources(1, &session->ao_resource);
+		cudaGraphicsMapResources(1, &session->output_resource);
 		checkCUDAError("cudaGraphicsMapResources() failed");
 
-		cudaGraphicsSubResourceGetMappedArray(&session->normals_array, session->normals_resource, 0, 0);
+		cudaGraphicsSubResourceGetMappedArray(&session->input_array, session->input_resource, 0, 0);
 		checkCUDAError("cudaGraphicsSubResourceGetMappedArray() failed");
 		cudaGraphicsSubResourceGetMappedArray(&session->depth_array, session->depth_resource, 0, 0);
 		checkCUDAError("cudaGraphicsSubResourceGetMappedArray() failed");
-		cudaGraphicsSubResourceGetMappedArray(&session->ao_array, session->ao_resource, 0, 0);
+		cudaGraphicsSubResourceGetMappedArray(&session->output_array, session->output_resource, 0, 0);
 		checkCUDAError("cudaGraphicsSubResourceGetMappedArray() failed");
 
 		TFCuda::set_input_memory_pointer(inputLinearMemory);
 		TFCuda::set_depth_memory_pointer(depthLinearMemory);
 		TFCuda::set_output_memory_pointer(outputLinearMemory);
 		TFCuda::set_pitch(mainPitch);
-		TFCuda::set_api(&_api);
 
 		// Create tensor input data to fulfill graph conditions, could maybe refactored later
 		session->zero_input = new TF::Tensor(TF::DT_FLOAT, TF::TensorShape({ 1, session->texture_width, session->texture_height, NUMBER_OF_CHANNELS }));
@@ -285,17 +282,17 @@ namespace PLUGIN_NAMESPACE
 	{
 		if (session)
 		{
-			cudaGraphicsUnmapResources(1, &session->normals_resource);
+			cudaGraphicsUnmapResources(1, &session->input_resource);
 			checkCUDAError("cudaGraphicsUnmapResources() failed");
 			cudaGraphicsUnmapResources(1, &session->depth_resource);
 			checkCUDAError("cudaGraphicsUnmapResources() failed");
-			cudaGraphicsUnmapResources(1, &session->ao_resource);
+			cudaGraphicsUnmapResources(1, &session->output_resource);
 			checkCUDAError("cudaGraphicsUnmapResources() failed");
-			cudaGraphicsUnregisterResource(session->normals_resource);
+			cudaGraphicsUnregisterResource(session->input_resource);
 			checkCUDAError("cudaGraphicsUnregisterResource() failed");
 			cudaGraphicsUnregisterResource(session->depth_resource);
 			checkCUDAError("cudaGraphicsUnregisterResource() failed");
-			cudaGraphicsUnregisterResource(session->ao_resource);
+			cudaGraphicsUnregisterResource(session->output_resource);
 			checkCUDAError("cudaGraphicsUnregisterResource() failed");
 			cudaFree(TFCuda::get_input_memory_pointer());
 			checkCUDAError("cudaFree() failed");
@@ -303,9 +300,9 @@ namespace PLUGIN_NAMESPACE
 			checkCUDAError("cudaFree() failed");
 			cudaFree(TFCuda::get_output_memory_pointer());
 			checkCUDAError("cudaFree() failed");
-			session->normals_texture->Release();
+			session->input_texture->Release();
 			session->depth_texture->Release();
-			session->ao_texture->Release();
+			session->output_texture->Release();
 			MAKE_DELETE(get_allocator(), session);
 			session = nullptr;
 		}
@@ -386,15 +383,15 @@ namespace PLUGIN_NAMESPACE
 			ID3D11DeviceContext *immediate_context;
 			device->GetImmediateContext(&immediate_context);
 
-			immediate_context->CopyResource(session->normals_texture, normals_render_target);
+			immediate_context->CopyResource(session->input_texture, normals_render_target);
 			immediate_context->CopyResource(session->depth_texture, depth_render_target);
 			immediate_context->Flush();
 
-			cudaMemcpy2DFromArray(TFCuda::get_input_memory_pointer(), TFCuda::get_pitch(), session->normals_array, 0, 0, session->texture_width * sizeof(unsigned char) * NUMBER_OF_CHANNELS, session->texture_height, cudaMemcpyDefault);
+			cudaMemcpy2DFromArray(TFCuda::get_input_memory_pointer(), TFCuda::get_pitch(), session->input_array, 0, 0, session->texture_width * sizeof(unsigned char) * NUMBER_OF_CHANNELS, session->texture_height, cudaMemcpyDeviceToDevice);
 			checkCUDAError("cudaMemcpy2DFromArray() failed");
 
-			cudaMemcpy2DFromArray(TFCuda::get_depth_memory_pointer(), TFCuda::get_pitch(), session->depth_array, 0, 0, session->texture_width * sizeof(float), session->texture_height, cudaMemcpyDefault);
-			checkCUDAError("cudaMemcpy2DFromArray() failed");
+			//cudaMemcpy2DFromArray(TFCuda::get_depth_memory_pointer(), TFCuda::get_pitch(), session->depth_array, 0, 0, session->texture_width * sizeof(float), session->texture_height, cudaMemcpyDeviceToDevice);
+			//checkCUDAError("cudaMemcpy2DFromArray() failed");
 
 			cudaDeviceSynchronize();
 			checkCUDAError("cudaDeviceSynchronize failed");
@@ -412,26 +409,25 @@ namespace PLUGIN_NAMESPACE
 			auto time_amount = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1);
 			_api._logging->warning(get_name(), _api._error->eprintf("Running the Tensorflow Graph took: `%lld` milliseconds.", time_amount.count()));
 #endif
-			if (!status.ok()) {
-				_api._logging->error(get_name(), status.ToString().c_str());
-				end_tf_execution();
-				return;
-			}
+			//if (!status.ok()) {
+			//	_api._logging->error(get_name(), status.ToString().c_str());
+			//	end_tf_execution();
+			//	return;
+			//}
 
 			cudaDeviceSynchronize();
 			checkCUDAError("cudaDeviceSynchronize failed");
 
-			cudaMemcpy2DToArray(session->ao_array, 0, 0, TFCuda::get_output_memory_pointer(), TFCuda::get_pitch(), session->texture_width * NUMBER_OF_CHANNELS * sizeof(unsigned char), session->texture_height, cudaMemcpyDefault);
+			//cudaMemcpy(TFCuda::get_output_memory_pointer(), TFCuda::get_input_memory_pointer(), TFCuda::get_pitch() * session->texture_height, cudaMemcpyDeviceToDevice);
+			//checkCUDAError("cudaMemcpy failed");
+
+			cudaMemcpy2DToArray(session->output_array, 0, 0, TFCuda::get_output_memory_pointer(), TFCuda::get_pitch(), session->texture_width * NUMBER_OF_CHANNELS * sizeof(unsigned char), session->texture_height, cudaMemcpyDeviceToDevice);
 			checkCUDAError("cudaMemcpy2DToArray failed");
 
 			cudaDeviceSynchronize();
 			checkCUDAError("cudaDeviceSynchronize failed");
 
-			//ID3D11Texture2D *back_buffer;
-			//IDXGISwapChain *swap_chain = _api._render_interface->swap_chain(0).dxgi_swap_chain;
-			//swap_chain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void**)&back_buffer);
-			//immediate_context->CopyResource(back_buffer, session->normals_texture);
-			immediate_context->CopyResource(nnao_render_target, session->normals_texture);
+			immediate_context->CopyResource(nnao_render_target, session->output_texture);
 			immediate_context->Flush();
 			++session->iterations_done;
 

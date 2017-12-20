@@ -8,7 +8,6 @@ namespace PLUGIN_NAMESPACE
 		void *_depth_memory;
 		void *_output_memory;
 		size_t _pitch;
-		ApiInterface *_api;
 	};
 	
 	static CUDA_transfer_data instance_data;
@@ -51,15 +50,5 @@ namespace PLUGIN_NAMESPACE
 	void TFCuda::set_pitch(size_t pitch)
 	{
 		instance_data._pitch = pitch;
-	}
-
-	ApiInterface *TFCuda::get_api()
-	{
-		return instance_data._api;
-	}
-
-	void TFCuda::set_api(ApiInterface *api)
-	{
-		instance_data._api = api;
 	}
 }
