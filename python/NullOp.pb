@@ -29,15 +29,15 @@ node {
   }
 }
 node {
-  name: "InteractiveInput"
-  op: "InteractiveInput"
+  name: "InteractiveNormalsInput"
+  op: "InteractiveNormalsInput"
   input: "input"
   device: "/device:GPU:0"
 }
 node {
   name: "InteractiveOutput"
   op: "InteractiveOutput"
-  input: "InteractiveInput"
+  input: "InteractiveNormalsInput"
   device: "/device:GPU:0"
 }
 versions {

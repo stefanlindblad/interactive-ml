@@ -29,15 +29,15 @@ node {
   }
 }
 node {
-  name: "InteractiveInput"
-  op: "InteractiveInput"
+  name: "InteractiveNormalsInput"
+  op: "InteractiveNormalsInput"
   input: "input"
   device: "/device:GPU:0"
 }
 node {
   name: "adjust_contrast/Identity"
   op: "Identity"
-  input: "InteractiveInput"
+  input: "InteractiveNormalsInput"
   device: "/device:GPU:0"
   attr {
     key: "T"
@@ -63,7 +63,7 @@ node {
         dtype: DT_FLOAT
         tensor_shape {
         }
-        float_val: 1.5
+        float_val: 2.0
       }
     }
   }

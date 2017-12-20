@@ -1,0 +1,29 @@
+append = {
+	render_settings = {
+	}
+
+	global_resources = [
+	]
+
+	resource_generators = {
+		interactive_ml = {
+			modifiers = [
+				{ type="dynamic_branch" render_settings={ vr_enabled=false }
+					pass = [
+						{ type="plugin" render_target="gbuffer1" depth_stencil="depth_stencil_buffer" plugin_name="TensorflowPlugin" }
+						{ type="plugin" render_target="linear_depth" depth_stencil="depth_stencil_buffer" plugin_name="TensorflowPlugin" }
+						{ type="plugin" render_target="nnao_map" depth_stencil="depth_stencil_buffer" plugin_name="TensorflowPlugin" }
+					]
+				}
+			]
+		}
+	}
+}
+
+insert_at = {
+	hud = {
+		layers = [
+			{ resource_generator="interactive_ml" profiling_scope="interactive_ml_plugin" }
+		]
+	}
+}

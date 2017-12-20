@@ -29,6 +29,13 @@ extern "C"
 				api.setup_data_compiler = &PLUGIN_NAMESPACE::TFPlugin::setup_data_compiler;
 				api.shutdown_data_compiler = &PLUGIN_NAMESPACE::TFPlugin::shutdown_data_compiler;
 				api.can_refresh = &PLUGIN_NAMESPACE::TFPlugin::can_refresh;
+				api.render = &PLUGIN_NAMESPACE::TFPlugin::render;
+				api.get_name = &PLUGIN_NAMESPACE::TFPlugin::get_name;
+				return &api;
+			}
+			if (api == RENDER_CALLBACKS_PLUGIN_API_ID) {
+				static struct RenderCallbacksPluginApi api = { 0 };
+				api.end_frame = &PLUGIN_NAMESPACE::TFPlugin::end_frame;
 				return &api;
 			}
 			return 0;

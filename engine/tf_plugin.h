@@ -18,26 +18,6 @@ namespace PLUGIN_NAMESPACE
 	namespace SPF = stingray_plugin_foundation;
 	namespace TF = tensorflow;
 
-	struct ApiInterface
-	{
-		DataCompilerApi *_data_compiler;
-		DataCompileParametersApi *_data_compile_parameters;
-		ErrorApi *_error;
-		LoggingApi *_logging;
-		FileSystemApi *_file_system;
-		LuaApi *_lua;
-		RenderBufferApi *_render_buffer;
-		RenderInterfaceApi *_render_interface;
-		MeshObjectApi *_mesh;
-		MaterialApi *_material;
-		StreamCaptureApi *_capture;
-		AllocatorApi *_allocator;
-		AllocatorObject *_allocator_object;
-		ResourceManagerApi *_resource_manager;
-		ApplicationApi *_application;
-		ApplicationOptionsApi *_options;
-	};
-
 	class TFPlugin
 	{
 	public:
@@ -54,5 +34,8 @@ namespace PLUGIN_NAMESPACE
 		static void end_tf_execution();
 		static void run_tf_graph(const char *texture_name, const char *graph_name, const char *node_name, unsigned iterations);
 		static bool getLastCudaError(const char *errorMessage, const char *file, const int line);
+		static void render(RenderDevicePluginArguments *arguments);
+		static void end_frame();
+		static void* get_render_env();
 	};
 }
