@@ -36,6 +36,7 @@ namespace PLUGIN_NAMESPACE
 		ResourceManagerApi *_resource_manager;
 		ApplicationApi *_application;
 		ApplicationOptionsApi *_options;
+		CApi *_c;
 	};
 
 	class TFPlugin

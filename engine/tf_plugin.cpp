@@ -21,8 +21,6 @@ namespace PLUGIN_NAMESPACE
 
 	// This is actually bad, should find a more flexible solution at some point
 	const unsigned NUMBER_OF_CHANNELS = 4;
-	const unsigned NNAO_WIDTH = 1024;
-	const unsigned NNAO_HEIGHT = 1024;
 
 	// pointers to the render resources we are flushing through the network
 	enum RenderTargetStep { ReceivingNormals, ReceivingDepth, ReceivingNNAO, ReceivedEverything };
@@ -104,6 +102,7 @@ namespace PLUGIN_NAMESPACE
 		_api._file_system = static_cast<FileSystemApi*>(get_engine_api(FILESYSTEM_API_ID));
 		_api._resource_manager = static_cast<ResourceManagerApi*>(get_engine_api(RESOURCE_MANAGER_API_ID));
 		_api._options = static_cast<ApplicationOptionsApi*>(get_engine_api(APPLICATION_OPTIONS_API_ID));
+		_api._c = static_cast<CApi*>(get_engine_api(C_API_ID));
 		_api._allocator = static_cast<AllocatorApi*>(get_engine_api(ALLOCATOR_API_ID));
 		_api._allocator_object = _api._allocator->make_plugin_allocator(TFPlugin::get_name());
 		_tensorflow_allocator = SPF::ApiAllocator(_api._allocator, _api._allocator_object);
@@ -120,10 +119,12 @@ namespace PLUGIN_NAMESPACE
 		_api._mesh = nullptr;
 		_api._material = nullptr;
 		_api._lua = nullptr;
-		_api._error = nullptr;
 		_api._logging = nullptr;
+		_api._error = nullptr;
 		_api._file_system = nullptr;
 		_api._resource_manager = nullptr;
+		_api._options = nullptr;
+		_api._c = nullptr;
 		_game_api_initialized = false;
 	}
 
@@ -175,13 +176,10 @@ namespace PLUGIN_NAMESPACE
 		ID3D11DeviceContext *immediate_context;
 		device->GetImmediateContext(&immediate_context);
 
-
 		D3D11_TEXTURE2D_DESC desc;
 		normals_render_target->GetDesc(&desc);
 		session->texture_width = desc.Width;
 		session->texture_height = desc.Height;
-		//session->texture_width = NNAO_WIDTH;
-		//session->texture_height = NNAO_HEIGHT;
 
 		RtlZeroMemory(&desc, sizeof(D3D11_TEXTURE2D_DESC));
 		desc.Width = session->texture_width;
@@ -230,24 +228,24 @@ namespace PLUGIN_NAMESPACE
 
 		if (mainPitch != depthPitch)
 		{
-			_api._logging->error(get_name(), "Input Data have different memory layout, not supported.");
+			_api._logging->error(get_name(), "Input Data have different memory layout, this is not supported.");
 			return;
 		}
 
 		cudaMallocPitch(&outputLinearMemory, &mainPitch, session->texture_width * sizeof(unsigned char) * NUMBER_OF_CHANNELS, session->texture_height);
 		checkCUDAError("cudaMallocPitch() failed");
-
+		
 		if (mainPitch != depthPitch)
 		{
-			_api._logging->error(get_name(), "Input Data have different memory layout, not supported.");
+			_api._logging->error(get_name(), "Input Data have different memory layout, this is not supported.");
 			return;
 		}
 
-		cudaMemset(inputLinearMemory, 1, mainPitch * session->texture_height);
+		cudaMemset(inputLinearMemory, 0, mainPitch * session->texture_height);
 		checkCUDAError("cudaMemset() failed");
-		cudaMemset(depthLinearMemory, 1, mainPitch * session->texture_height);
+		cudaMemset(depthLinearMemory, 0, mainPitch * session->texture_height);
 		checkCUDAError("cudaMemset() failed");
-		cudaMemset(outputLinearMemory, 1, mainPitch * session->texture_height);
+		cudaMemset(outputLinearMemory, 0, mainPitch * session->texture_height);
 		checkCUDAError("cudaMemset() failed");
 
 		cudaGraphicsResourceSetMapFlags(session->input_resource, cudaGraphicsMapFlagsNone);
@@ -274,7 +272,7 @@ namespace PLUGIN_NAMESPACE
 		TFCuda::set_depth_memory_pointer(depthLinearMemory);
 		TFCuda::set_output_memory_pointer(outputLinearMemory);
 		TFCuda::set_pitch(mainPitch);
-
+		
 		// Create tensor input data to fulfill graph conditions, could maybe refactored later
 		session->zero_input = new TF::Tensor(TF::DT_FLOAT, TF::TensorShape({ 1, session->texture_width, session->texture_height, NUMBER_OF_CHANNELS }));
 
@@ -353,9 +351,15 @@ namespace PLUGIN_NAMESPACE
 			.Input("to_interactive: float")
 			.Output("interactive_output: float")
 			.SetShapeFn(::tensorflow::shape_inference::UnchangedShape);
+
+		REGISTER_OP("InteractiveDepthOutput")
+			.Input("to_interactive: float")
+			.Output("interactive_output: float")
+			.SetShapeFn(::tensorflow::shape_inference::UnchangedShape);
 		REGISTER_KERNEL_BUILDER(Name("InteractiveNormalsInput").Device(TF::DEVICE_GPU), InteractiveNormalsInputOp<Eigen::GpuDevice, float>);
 		REGISTER_KERNEL_BUILDER(Name("InteractiveDepthInput").Device(TF::DEVICE_GPU), InteractiveDepthInputOp<Eigen::GpuDevice, float>);
 		REGISTER_KERNEL_BUILDER(Name("InteractiveOutput").Device(TF::DEVICE_GPU), InteractiveOutputOp<Eigen::GpuDevice, float>);
+		REGISTER_KERNEL_BUILDER(Name("InteractiveDepthOutput").Device(TF::DEVICE_GPU), InteractiveDepthOutputOp<Eigen::GpuDevice, float>);
 	}
 
 	void TFPlugin::update_plugin(float dt)
@@ -399,18 +403,13 @@ namespace PLUGIN_NAMESPACE
 			ID3D11DeviceContext *immediate_context;
 			device->GetImmediateContext(&immediate_context);
 
-			//D3D11_BOX sourceRegion;
-			//sourceRegion.left = 0;
-			//sourceRegion.top = 0;
-			//sourceRegion.right = NNAO_WIDTH;
-			//sourceRegion.bottom = NNAO_HEIGHT;
-			//sourceRegion.front = 0;
-			//sourceRegion.back = 1;
+			// Copy the normals texture data (R8G8B8A8) into CUDA memory
 			immediate_context->CopySubresourceRegion(session->input_texture, 0, 0, 0, 0, normals_render_target, 0, nullptr);
-
 			cudaMemcpy2DFromArray(TFCuda::get_input_memory_pointer(), TFCuda::get_pitch(), session->input_array, 0, 0, session->texture_width * sizeof(unsigned char) * NUMBER_OF_CHANNELS, session->texture_height, cudaMemcpyDeviceToDevice);
 			checkCUDAError("cudaMemcpy2DFromArray() failed");
 
+			// Copy the depth texture data (R32F) into CUDA memory
+			immediate_context->CopySubresourceRegion(session->depth_texture, 0, 0, 0, 0, depth_render_target, 0, nullptr);
 			cudaMemcpy2DFromArray(TFCuda::get_depth_memory_pointer(), TFCuda::get_pitch(), session->depth_array, 0, 0, session->texture_width * sizeof(float), session->texture_height, cudaMemcpyDeviceToDevice);
 			checkCUDAError("cudaMemcpy2DFromArray() failed");
 

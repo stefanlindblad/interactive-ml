@@ -15,12 +15,21 @@ namespace {
 		return 0;
 	}
 
+	int set_camera(struct lua_State *L)
+	{
+		CApiCamera* camera = (CApiCamera*) TFPlugin::get_api()._lua->topointer(L, 1);
+		TFCuda::set_near_range(TFPlugin::get_api()._c->Camera->near_range(camera));
+		TFCuda::set_far_range(TFPlugin::get_api()._c->Camera->far_range(camera));
+		return 0;
+	}
+
 } // anonymous namespace
 
 void setup_lua()
 {
 	ApiInterface api = TFPlugin::get_api();
 	api._lua->add_module_function("Tensorflow", "run_graph", run_graph);
+	api._lua->add_module_function("Tensorflow", "set_camera", set_camera);
 }
 
 } // PLUGIN_NAMESPACE

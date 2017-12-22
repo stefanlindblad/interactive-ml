@@ -29,9 +29,15 @@ node {
   }
 }
 node {
+  name: "InteractiveDepthInput"
+  op: "InteractiveDepthInput"
+  input: "input"
+  device: "/device:GPU:0"
+}
+node {
   name: "InteractiveNormalsInput"
   op: "InteractiveNormalsInput"
-  input: "input"
+  input: "InteractiveDepthInput"
   device: "/device:GPU:0"
 }
 node {

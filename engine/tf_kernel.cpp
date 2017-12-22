@@ -18,8 +18,14 @@ REGISTER_OP("InteractiveOutput")
 .Output("interactive_output: float")
 .SetShapeFn(::tensorflow::shape_inference::UnchangedShape);
 
+REGISTER_OP("InteractiveDepthOutput")
+.Input("to_interactive: float")
+.Output("interactive_output: float")
+.SetShapeFn(::tensorflow::shape_inference::UnchangedShape);
+
 REGISTER_KERNEL_BUILDER(Name("InteractiveNormalsInput").Device(TF::DEVICE_GPU), InteractiveNormalsInputOp<Eigen::GpuDevice, float>);
 REGISTER_KERNEL_BUILDER(Name("InteractiveDepthInput").Device(TF::DEVICE_GPU), InteractiveDepthInputOp<Eigen::GpuDevice, float>);
 REGISTER_KERNEL_BUILDER(Name("InteractiveOutput").Device(TF::DEVICE_GPU), InteractiveOutputOp<Eigen::GpuDevice, float>);
+REGISTER_KERNEL_BUILDER(Name("InteractiveDepthOutput").Device(TF::DEVICE_GPU), InteractiveDepthOutputOp<Eigen::GpuDevice, float>);
 
 #endif  // GOOGLE_CUDA
