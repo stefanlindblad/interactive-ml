@@ -8,7 +8,6 @@
 
 // Disabling all the warnings from Tensorflow
 #pragma warning(push, 0)
-#include "tensorflow/core/framework/common_shape_fns.h"
 #include "tensorflow/core/framework/op_kernel.h"
 #include "tensorflow/core/platform/load_library.h"
 #include "tensorflow/core/public/session.h"

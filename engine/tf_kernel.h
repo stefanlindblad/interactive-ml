@@ -61,8 +61,11 @@ public:
 		OP_REQUIRES(context, output_tensor->shape().dims() == 4,
 			TF::errors::Unavailable("Interactive Input expects 4 dimensions (batch, width, height, channels)"));
 
+		OP_REQUIRES(context, output_tensor->shape().dim_size(3) == 4,
+			TF::errors::Unavailable("Interactive Input expects 4 channels"));
+
 		OP_REQUIRES(context, _memory != nullptr,
-			TF::errors::Unavailable("Could not get texture memory"));
+			TF::errors::Unavailable("Could not get normals memory"));
 
 		OP_REQUIRES(context, input_tensor.NumElements() <= tensorflow::kint32max,
 			TF::errors::InvalidArgument("Too many elements in tensor"));
@@ -110,8 +113,11 @@ public:
 		OP_REQUIRES(context, output_tensor->shape().dims() == 4,
 			TF::errors::Unavailable("Interactive Input expects 4 dimensions (batch, width, height, channels)"));
 
+		OP_REQUIRES(context, output_tensor->shape().dim_size(3) == 4,
+			TF::errors::Unavailable("Interactive Input expects 4 channels"));
+
 		OP_REQUIRES(context, _memory != nullptr,
-			TF::errors::Unavailable("Could not get texture memory"));
+			TF::errors::Unavailable("Could not get depth memory"));
 
 		OP_REQUIRES(context, input_tensor.NumElements() <= tensorflow::kint32max,
 			TF::errors::InvalidArgument("Too many elements in tensor"));
@@ -130,7 +136,7 @@ public:
 
 private:
 	float _near_range = 0.1f;
-	float _far_range = 1000.0f;
+	float _far_range = 10000.0f;
 	size_t _pitch = 0;
 	void *_memory = nullptr;
 };
@@ -230,9 +236,31 @@ public:
 
 private:
 	float _near_range = 0.1f;
-	float _far_range = 1000.0f;
+	float _far_range = 10000.0f;
 	void *_memory = nullptr;
 	size_t _pitch = 0;
+};
+
+template <typename Device, typename T>
+class InteractiveDebugPrintOp : public TF::OpKernel {
+public:
+	explicit InteractiveDebugPrintOp(TF::OpKernelConstruction* context) : OpKernel(context) {}
+
+	void Compute(TF::OpKernelContext* context) override {
+		// Grab the input tensor
+		const TF::Tensor& input_tensor = context->input(0);
+		auto input = input_tensor.flat<T>();
+
+		// Create an output tensor
+		TF::Tensor* output_tensor = NULL;
+		OP_REQUIRES_OK(context, context->allocate_output(0, input_tensor.shape(), &output_tensor));
+		auto output = output_tensor->flat<T>();
+
+		auto N = input.size();
+		for (auto i = 0; i < N; i++) {
+			output(i) = input(i);
+		}
+	}
 };
 
 #endif //INTERACTIVE_KERNEL_H_

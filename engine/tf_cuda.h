@@ -1,10 +1,19 @@
 #pragma once
 #include <cuda_d3d11_interop.h>
 #include <cuda_runtime_api.h>
-#include <engine_plugin_api/c_api/c_api_camera.h>
 
 namespace PLUGIN_NAMESPACE
 {
+	struct CUDA_transfer_data
+	{
+		void *_input_memory;
+		void *_depth_memory;
+		void *_output_memory;
+		size_t _pitch;
+		float _near_range = 0.1f;
+		float _far_range = 10000.0f;
+	};
+
 	class TFCuda
 	{
 	public:

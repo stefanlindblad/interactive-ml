@@ -4,7 +4,8 @@ namespace PLUGIN_NAMESPACE
 {
 	//#define WAITFORDEBUGGER
 	#define checkCUDAError(msg) if(getLastCudaError (msg, __FILE__, __LINE__)) return
-	#define MEASURE_TIME
+	//#define MEASURE_TIME
+	#define PRINT_RESULTS
 
 	namespace SPF = stingray_plugin_foundation;
 	namespace TF = tensorflow;
@@ -112,6 +113,7 @@ namespace PLUGIN_NAMESPACE
 	void deinit_game_api()
 	{
 		_api._allocator->destroy_plugin_allocator(_api._allocator_object);
+		_api._allocator_object = nullptr;
 		_api._allocator = nullptr;
 		_api._render_buffer = nullptr;
 		_api._render_interface = nullptr;
@@ -130,14 +132,13 @@ namespace PLUGIN_NAMESPACE
 
 	void deinit_compiler_api()
 	{
-		_api._data_compiler = nullptr;
-		_api._data_compile_parameters = nullptr;
 		_api._allocator->destroy_plugin_allocator(_api._allocator_object);
+		_api._allocator_object = nullptr;
+		_api._allocator = nullptr;
 		_api._data_compiler = nullptr;
 		_api._data_compile_parameters = nullptr;
 		_api._resource_manager = nullptr;
 		_api._application = nullptr;
-		_api._allocator = nullptr;
 		_compiler_api_initialized = false;
 	}
 
@@ -191,13 +192,13 @@ namespace PLUGIN_NAMESPACE
 		desc.Usage = D3D11_USAGE_DEFAULT;
 		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		device->CreateTexture2D(&desc, nullptr, &session->input_texture);
-		device->CreateTexture2D(&desc, nullptr, &session->output_texture);
+		//device->CreateTexture2D(&desc, nullptr, &session->output_texture);
 
 		cudaGraphicsD3D11RegisterResource(&session->input_resource, session->input_texture, cudaGraphicsRegisterFlagsNone);
 		checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");
 
-		cudaGraphicsD3D11RegisterResource(&session->output_resource, session->output_texture, cudaGraphicsRegisterFlagsNone);
-		checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");
+		//cudaGraphicsD3D11RegisterResource(&session->output_resource, session->output_texture, cudaGraphicsRegisterFlagsNone);
+		//checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");
 
 		D3D11_TEXTURE2D_DESC depthDesc;
 		depth_render_target->GetDesc(&depthDesc);
@@ -211,8 +212,12 @@ namespace PLUGIN_NAMESPACE
 		depthDesc.Usage = D3D11_USAGE_DEFAULT;
 		depthDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
 		device->CreateTexture2D(&depthDesc, nullptr, &session->depth_texture);
+		device->CreateTexture2D(&depthDesc, nullptr, &session->output_texture);
 
 		cudaGraphicsD3D11RegisterResource(&session->depth_resource, session->depth_texture, cudaGraphicsRegisterFlagsNone);
+		checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");
+
+		cudaGraphicsD3D11RegisterResource(&session->output_resource, session->output_texture, cudaGraphicsRegisterFlagsNone);
 		checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");
 
 		void* inputLinearMemory = nullptr;
@@ -340,26 +345,48 @@ namespace PLUGIN_NAMESPACE
 		REGISTER_OP("InteractiveNormalsInput")
 			.Input("interactive_input: float")
 			.Output("from_interactive: float")
-			.SetShapeFn(::tensorflow::shape_inference::UnchangedShape);
+			.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+			c->set_output(0, c->input(0));
+			return TF::Status::OK();
+		});
 
 		REGISTER_OP("InteractiveDepthInput")
 			.Input("interactive_input: float")
 			.Output("from_interactive: float")
-			.SetShapeFn(::tensorflow::shape_inference::UnchangedShape);
+			.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+			c->set_output(0, c->input(0));
+			return TF::Status::OK();
+		});
 
 		REGISTER_OP("InteractiveOutput")
 			.Input("to_interactive: float")
 			.Output("interactive_output: float")
-			.SetShapeFn(::tensorflow::shape_inference::UnchangedShape);
+			.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+			c->set_output(0, c->input(0));
+			return TF::Status::OK();
+		});
 
 		REGISTER_OP("InteractiveDepthOutput")
 			.Input("to_interactive: float")
 			.Output("interactive_output: float")
-			.SetShapeFn(::tensorflow::shape_inference::UnchangedShape);
+			.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+			c->set_output(0, c->input(0));
+			return TF::Status::OK();
+		});
+
+		REGISTER_OP("InteractiveDebugPrint")
+			.Input("to_print: float")
+			.Output("printed: float")
+			.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+			c->set_output(0, c->input(0));
+			return TF::Status::OK();
+		});
+
 		REGISTER_KERNEL_BUILDER(Name("InteractiveNormalsInput").Device(TF::DEVICE_GPU), InteractiveNormalsInputOp<Eigen::GpuDevice, float>);
 		REGISTER_KERNEL_BUILDER(Name("InteractiveDepthInput").Device(TF::DEVICE_GPU), InteractiveDepthInputOp<Eigen::GpuDevice, float>);
 		REGISTER_KERNEL_BUILDER(Name("InteractiveOutput").Device(TF::DEVICE_GPU), InteractiveOutputOp<Eigen::GpuDevice, float>);
 		REGISTER_KERNEL_BUILDER(Name("InteractiveDepthOutput").Device(TF::DEVICE_GPU), InteractiveDepthOutputOp<Eigen::GpuDevice, float>);
+		REGISTER_KERNEL_BUILDER(Name("InteractiveDebugPrint").Device(TF::DEVICE_CPU), InteractiveDebugPrintOp<Eigen::ThreadPoolDevice, float>);
 	}
 
 	void TFPlugin::update_plugin(float dt)
@@ -431,6 +458,19 @@ namespace PLUGIN_NAMESPACE
 				return;
 			}
 
+#ifdef PRINT_RESULTS
+			if (session->iterations_done == 12)
+			{
+				TF::Tensor result = out_tensors.at(0);
+				auto output_flat = result.flat<float>();
+
+				for (auto i = 0; i < 500; i++) {
+					float value = output_flat(i);
+					_api._logging->info(get_name(), _api._error->eprintf("Tensor Value at Position %i is: %f", i, value));
+				}
+			}
+#endif
+
 			cudaMemcpy2DToArray(session->output_array, 0, 0, TFCuda::get_output_memory_pointer(), TFCuda::get_pitch(), session->texture_width * NUMBER_OF_CHANNELS * sizeof(unsigned char), session->texture_height, cudaMemcpyDeviceToDevice);
 			checkCUDAError("cudaMemcpy2DToArray failed");
 
@@ -460,6 +500,7 @@ namespace PLUGIN_NAMESPACE
 	void TFPlugin::shutdown_plugin()
 	{
 		end_tf_execution();
+		deinit_game_api();
 	}
 
 	void TFPlugin::setup_data_compiler(GetApiFunction get_engine_api)

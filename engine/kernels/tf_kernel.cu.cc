@@ -23,10 +23,10 @@ __global__ void InteractiveNormalsInputKernel(int width, int height, size_t pitc
 	src = (unsigned char *)(in + y*pitch) + 4 * x;
 	dest = (T *)(out + y*pitch) + 4 * x;
 
-	dest[0] = ((float)src[0]) / 255.0f;
-	dest[1] = ((float)src[1]) / 255.0f;
-	dest[2] = ((float)src[2]) / 255.0f;
-	dest[3] = ((float)src[3]) / 255.0f;
+	dest[0] = ((T) src[0]) / 255.0f;
+	dest[1] = ((T) src[1]) / 255.0f;
+	dest[2] = ((T) src[2]) / 255.0f;
+	dest[3] = ((T) src[3]) / 255.0f;
 }
 
 template <typename T>
@@ -47,10 +47,10 @@ __global__ void InteractiveDepthInputKernel(int width, int height, size_t pitch,
 	src = (float *)(in + y*pitch) + 4 * x;
 	dest = (T *)(out + y*pitch) + 4 * x;
 
-	dest[0] = ((src[0] - min) / range);
-	dest[1] = ((src[1] - min) / range);
-	dest[2] = ((src[2] - min) / range);
-	dest[3] = ((src[3] - min) / range);
+	dest[0] = (T) ((src[0] - min) / range);
+	dest[1] = (T) ((src[1] - min) / range);
+	dest[2] = (T) ((src[2] - min) / range);
+	dest[3] = (T) ((src[3] - min) / range);
 }
 
 template <typename T>
