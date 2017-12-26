@@ -11,7 +11,7 @@ namespace PLUGIN_NAMESPACE
 		void *_output_memory;
 		size_t _pitch;
 		float _near_range = 0.1f;
-		float _far_range = 10000.0f;
+		float _far_range = 1000.0f;
 	};
 
 	class TFCuda

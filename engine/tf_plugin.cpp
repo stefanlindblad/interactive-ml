@@ -5,7 +5,7 @@ namespace PLUGIN_NAMESPACE
 	//#define WAITFORDEBUGGER
 	#define checkCUDAError(msg) if(getLastCudaError (msg, __FILE__, __LINE__)) return
 	//#define MEASURE_TIME
-	#define PRINT_RESULTS
+	//#define PRINT_RESULTS
 
 	namespace SPF = stingray_plugin_foundation;
 	namespace TF = tensorflow;
@@ -181,76 +181,47 @@ namespace PLUGIN_NAMESPACE
 		normals_render_target->GetDesc(&desc);
 		session->texture_width = desc.Width;
 		session->texture_height = desc.Height;
-
 		RtlZeroMemory(&desc, sizeof(D3D11_TEXTURE2D_DESC));
 		desc.Width = session->texture_width;
 		desc.Height = session->texture_height;
 		desc.MipLevels = 1;
 		desc.ArraySize = 1;
-		desc.Format = DXGI_FORMAT_R8G8B8A8_UINT;
 		desc.SampleDesc.Count = 1;
 		desc.Usage = D3D11_USAGE_DEFAULT;
 		desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+		desc.Format = DXGI_FORMAT_R8G8B8A8_UINT;
 		device->CreateTexture2D(&desc, nullptr, &session->input_texture);
-		//device->CreateTexture2D(&desc, nullptr, &session->output_texture);
+		device->CreateTexture2D(&desc, nullptr, &session->output_texture);
+
+		desc.Format = DXGI_FORMAT_R32_FLOAT;
+		device->CreateTexture2D(&desc, nullptr, &session->depth_texture);
 
 		cudaGraphicsD3D11RegisterResource(&session->input_resource, session->input_texture, cudaGraphicsRegisterFlagsNone);
 		checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");
-
-		//cudaGraphicsD3D11RegisterResource(&session->output_resource, session->output_texture, cudaGraphicsRegisterFlagsNone);
-		//checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");
-
-		D3D11_TEXTURE2D_DESC depthDesc;
-		depth_render_target->GetDesc(&depthDesc);
-		RtlZeroMemory(&desc, sizeof(D3D11_TEXTURE2D_DESC));
-		depthDesc.Width = session->texture_width;
-		depthDesc.Height = session->texture_height;
-		depthDesc.MipLevels = 1;
-		depthDesc.ArraySize = 1;
-		depthDesc.Format = DXGI_FORMAT_R32_FLOAT;
-		depthDesc.SampleDesc.Count = 1;
-		depthDesc.Usage = D3D11_USAGE_DEFAULT;
-		depthDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
-		device->CreateTexture2D(&depthDesc, nullptr, &session->depth_texture);
-		device->CreateTexture2D(&depthDesc, nullptr, &session->output_texture);
-
 		cudaGraphicsD3D11RegisterResource(&session->depth_resource, session->depth_texture, cudaGraphicsRegisterFlagsNone);
 		checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");
-
 		cudaGraphicsD3D11RegisterResource(&session->output_resource, session->output_texture, cudaGraphicsRegisterFlagsNone);
 		checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");
 
+		size_t memorySize = session->texture_width * sizeof(unsigned char) * NUMBER_OF_CHANNELS;
 		void* inputLinearMemory = nullptr;
 		void* depthLinearMemory = nullptr;
 		void* outputLinearMemory = nullptr;
-		size_t mainPitch = 0;
-		size_t depthPitch = 0;
+		size_t pitchSize = 0;
 
-		cudaMallocPitch(&inputLinearMemory, &mainPitch, session->texture_width * sizeof(unsigned char) * NUMBER_OF_CHANNELS, session->texture_height);
+		cudaMallocPitch(&inputLinearMemory, &pitchSize, memorySize, session->texture_height);
 		checkCUDAError("cudaMallocPitch() failed");
-		cudaMallocPitch(&depthLinearMemory, &depthPitch, session->texture_width * sizeof(float), session->texture_height);
+		cudaMallocPitch(&depthLinearMemory, &pitchSize, memorySize, session->texture_height);
+		checkCUDAError("cudaMallocPitch() failed");
+		cudaMallocPitch(&outputLinearMemory, &pitchSize, memorySize, session->texture_height);
 		checkCUDAError("cudaMallocPitch() failed");
 
-		if (mainPitch != depthPitch)
-		{
-			_api._logging->error(get_name(), "Input Data have different memory layout, this is not supported.");
-			return;
-		}
-
-		cudaMallocPitch(&outputLinearMemory, &mainPitch, session->texture_width * sizeof(unsigned char) * NUMBER_OF_CHANNELS, session->texture_height);
-		checkCUDAError("cudaMallocPitch() failed");
-		
-		if (mainPitch != depthPitch)
-		{
-			_api._logging->error(get_name(), "Input Data have different memory layout, this is not supported.");
-			return;
-		}
-
-		cudaMemset(inputLinearMemory, 0, mainPitch * session->texture_height);
+		cudaMemset(inputLinearMemory, 0, pitchSize * session->texture_height);
 		checkCUDAError("cudaMemset() failed");
-		cudaMemset(depthLinearMemory, 0, mainPitch * session->texture_height);
+		cudaMemset(depthLinearMemory, 0, pitchSize * session->texture_height);
 		checkCUDAError("cudaMemset() failed");
-		cudaMemset(outputLinearMemory, 0, mainPitch * session->texture_height);
+		cudaMemset(outputLinearMemory, 0, pitchSize * session->texture_height);
 		checkCUDAError("cudaMemset() failed");
 
 		cudaGraphicsResourceSetMapFlags(session->input_resource, cudaGraphicsMapFlagsNone);
@@ -258,6 +229,7 @@ namespace PLUGIN_NAMESPACE
 		cudaGraphicsResourceSetMapFlags(session->depth_resource, cudaGraphicsMapFlagsNone);
 		checkCUDAError("cudaGraphicsResourceSetMapFlags() failed");
 		cudaGraphicsResourceSetMapFlags(session->output_resource, cudaGraphicsMapFlagsNone);
+
 		checkCUDAError("cudaGraphicsResourceSetMapFlags() failed");
 		cudaGraphicsMapResources(1, &session->input_resource);
 		checkCUDAError("cudaGraphicsMapResources() failed");
@@ -276,7 +248,7 @@ namespace PLUGIN_NAMESPACE
 		TFCuda::set_input_memory_pointer(inputLinearMemory);
 		TFCuda::set_depth_memory_pointer(depthLinearMemory);
 		TFCuda::set_output_memory_pointer(outputLinearMemory);
-		TFCuda::set_pitch(mainPitch);
+		TFCuda::set_pitch(pitchSize);
 		
 		// Create tensor input data to fulfill graph conditions, could maybe refactored later
 		session->zero_input = new TF::Tensor(TF::DT_FLOAT, TF::TensorShape({ 1, session->texture_width, session->texture_height, NUMBER_OF_CHANNELS }));
@@ -339,54 +311,9 @@ namespace PLUGIN_NAMESPACE
 
 		if (!_game_api_initialized)
 			init_game_api(get_engine_api);
+
 		setup_lua();
-
-		// Register the Interactive Ops and Kernels
-		REGISTER_OP("InteractiveNormalsInput")
-			.Input("interactive_input: float")
-			.Output("from_interactive: float")
-			.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-			c->set_output(0, c->input(0));
-			return TF::Status::OK();
-		});
-
-		REGISTER_OP("InteractiveDepthInput")
-			.Input("interactive_input: float")
-			.Output("from_interactive: float")
-			.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-			c->set_output(0, c->input(0));
-			return TF::Status::OK();
-		});
-
-		REGISTER_OP("InteractiveOutput")
-			.Input("to_interactive: float")
-			.Output("interactive_output: float")
-			.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-			c->set_output(0, c->input(0));
-			return TF::Status::OK();
-		});
-
-		REGISTER_OP("InteractiveDepthOutput")
-			.Input("to_interactive: float")
-			.Output("interactive_output: float")
-			.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-			c->set_output(0, c->input(0));
-			return TF::Status::OK();
-		});
-
-		REGISTER_OP("InteractiveDebugPrint")
-			.Input("to_print: float")
-			.Output("printed: float")
-			.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
-			c->set_output(0, c->input(0));
-			return TF::Status::OK();
-		});
-
-		REGISTER_KERNEL_BUILDER(Name("InteractiveNormalsInput").Device(TF::DEVICE_GPU), InteractiveNormalsInputOp<Eigen::GpuDevice, float>);
-		REGISTER_KERNEL_BUILDER(Name("InteractiveDepthInput").Device(TF::DEVICE_GPU), InteractiveDepthInputOp<Eigen::GpuDevice, float>);
-		REGISTER_KERNEL_BUILDER(Name("InteractiveOutput").Device(TF::DEVICE_GPU), InteractiveOutputOp<Eigen::GpuDevice, float>);
-		REGISTER_KERNEL_BUILDER(Name("InteractiveDepthOutput").Device(TF::DEVICE_GPU), InteractiveDepthOutputOp<Eigen::GpuDevice, float>);
-		REGISTER_KERNEL_BUILDER(Name("InteractiveDebugPrint").Device(TF::DEVICE_CPU), InteractiveDebugPrintOp<Eigen::ThreadPoolDevice, float>);
+		setup_kernels();
 	}
 
 	void TFPlugin::update_plugin(float dt)
@@ -459,7 +386,8 @@ namespace PLUGIN_NAMESPACE
 			}
 
 #ifdef PRINT_RESULTS
-			if (session->iterations_done == 12)
+			// Prints the first 500 tensor values, this requires the output operator to run on the host
+			if (session->iterations_done == 1)
 			{
 				TF::Tensor result = out_tensors.at(0);
 				auto output_flat = result.flat<float>();
@@ -470,7 +398,6 @@ namespace PLUGIN_NAMESPACE
 				}
 			}
 #endif
-
 			cudaMemcpy2DToArray(session->output_array, 0, 0, TFCuda::get_output_memory_pointer(), TFCuda::get_pitch(), session->texture_width * NUMBER_OF_CHANNELS * sizeof(unsigned char), session->texture_height, cudaMemcpyDeviceToDevice);
 			checkCUDAError("cudaMemcpy2DToArray failed");
 

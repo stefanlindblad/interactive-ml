@@ -15,24 +15,30 @@
 
 namespace TF = tensorflow;
 
+namespace PLUGIN_NAMESPACE {
+
+	void setup_kernels();
+
+} // PLUGIN_NAMESPACE
+
 template <typename Device, typename T>
 struct InteractiveNormalsInputFunctor {
-	void operator()(const Device& d, int width, int height, size_t pitch, const void* in, T* out);
+	cudaError_t operator()(const Device& d, int width, int height, size_t pitch, const void* in, T* out);
 };
 
 template <typename Device, typename T>
 struct InteractiveDepthInputFunctor {
-	void operator()(const Device& d, int width, int height, size_t pitch, float min, float max, const void* in, T* out);
+	cudaError_t operator()(const Device& d, int width, int height, size_t pitch, float min, float max, const void* in, T* out);
 };
 
 template <typename Device, typename T>
 struct InteractiveOutputFunctor {
-	void operator()(const Device& d, int width, int height, size_t pitch, const T* in, void* out);
+	cudaError_t operator()(const Device& d, int width, int height, size_t pitch, const T* in, void* out);
 };
 
 template <typename Device, typename T>
 struct InteractiveDepthOutputFunctor {
-	void operator()(const Device& d, int width, int height, size_t pitch, float min, float max, const T* in, void* out);
+	cudaError_t operator()(const Device& d, int width, int height, size_t pitch, float min, float max, const T* in, void* out);
 };
 
 template <typename Device, typename T>
@@ -71,13 +77,15 @@ public:
 			TF::errors::InvalidArgument("Too many elements in tensor"));
 
 		// Do the computation.
-		InteractiveNormalsInputFunctor<Device, T>()(
+		cudaError_t result = InteractiveNormalsInputFunctor<Device, T>()(
 			context->eigen_device<Device>(),
 			static_cast<int>(input_tensor.shape().dim_size(1)),
 			static_cast<int>(input_tensor.shape().dim_size(2)),
 			_pitch,
 			_memory,
 			output_tensor->flat<T>().data());
+
+		OP_REQUIRES(context, result == cudaSuccess, TF::errors::Internal("CUDA Error occured!"));
 	}
 
 private:
@@ -123,7 +131,7 @@ public:
 			TF::errors::InvalidArgument("Too many elements in tensor"));
 
 		// Do the computation.
-		InteractiveDepthInputFunctor<Device, T>()(
+		cudaError_t result = InteractiveDepthInputFunctor<Device, T>()(
 			context->eigen_device<Device>(),
 			static_cast<int>(input_tensor.shape().dim_size(1)),
 			static_cast<int>(input_tensor.shape().dim_size(2)),
@@ -132,11 +140,13 @@ public:
 			_far_range,
 			_memory,
 			output_tensor->flat<T>().data());
+
+		OP_REQUIRES(context, result == cudaSuccess, TF::errors::Internal("CUDA Error occured!"));
 	}
 
 private:
 	float _near_range = 0.1f;
-	float _far_range = 10000.0f;
+	float _far_range = 1000.0f;
 	size_t _pitch = 0;
 	void *_memory = nullptr;
 };
@@ -167,6 +177,9 @@ public:
 		OP_REQUIRES(context, input_tensor.shape().dims() == 4,
 			TF::errors::Unavailable("Interactive Output expects 4 dimensions (batch, width, height, channels)"));
 
+		OP_REQUIRES(context, output_tensor->shape().dim_size(3) == 4,
+			TF::errors::Unavailable("Interactive Input expects 4 channels"));
+
 		OP_REQUIRES(context, _memory != nullptr,
 			TF::errors::Unavailable("Could not get texture memory"));
 
@@ -174,13 +187,15 @@ public:
 			TF::errors::InvalidArgument("Too many elements in tensor"));
 
 		// Do the computation.
-		InteractiveOutputFunctor<Device, T>()(
+		cudaError_t result = InteractiveOutputFunctor<Device, T>()(
 			context->eigen_device<Device>(),
 			static_cast<int>(input_tensor.shape().dim_size(1)),
 			static_cast<int>(input_tensor.shape().dim_size(2)),
 			_pitch,
 			input_tensor.flat<T>().data(),
 			_memory);
+
+		OP_REQUIRES(context, result == cudaSuccess, TF::errors::Internal("CUDA Error occured!"));
 	}
 
 private:
@@ -216,6 +231,9 @@ public:
 		OP_REQUIRES(context, input_tensor.shape().dims() == 4,
 			TF::errors::Unavailable("Interactive Output expects 4 dimensions (batch, width, height, channels)"));
 
+		OP_REQUIRES(context, output_tensor->shape().dim_size(3) == 4,
+			TF::errors::Unavailable("Interactive Input expects 4 channels"));
+
 		OP_REQUIRES(context, _memory != nullptr,
 			TF::errors::Unavailable("Could not get texture memory"));
 
@@ -223,7 +241,7 @@ public:
 			TF::errors::InvalidArgument("Too many elements in tensor"));
 
 		// Do the computation.
-		InteractiveDepthOutputFunctor<Device, T>()(
+		cudaError_t result = InteractiveDepthOutputFunctor<Device, T>()(
 			context->eigen_device<Device>(),
 			static_cast<int>(input_tensor.shape().dim_size(1)),
 			static_cast<int>(input_tensor.shape().dim_size(2)),
@@ -232,11 +250,13 @@ public:
 			_far_range,
 			input_tensor.flat<T>().data(),
 			_memory);
+
+		OP_REQUIRES(context, result == cudaSuccess, TF::errors::Internal("CUDA Error occured!"));
 	}
 
 private:
 	float _near_range = 0.1f;
-	float _far_range = 10000.0f;
+	float _far_range = 1000.0f;
 	void *_memory = nullptr;
 	size_t _pitch = 0;
 };
