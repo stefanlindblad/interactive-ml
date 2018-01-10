@@ -42,6 +42,7 @@ namespace PLUGIN_NAMESPACE
 		unsigned iterations_done;
 		unsigned iterations_max;
 		std::string output_node_name;
+		std::string tf_graph_name;
 		cudaArray *input_array = nullptr;
 		cudaArray *depth_array = nullptr;
 		cudaArray *output_array = nullptr;
@@ -170,6 +171,7 @@ namespace PLUGIN_NAMESPACE
 
 		session = MAKE_NEW(get_allocator(), Graph_Execution_Session);
 		session->output_node_name = node;
+		session->tf_graph_name = graph_name;
 		session->iterations_done = 0;
 		session->iterations_max = iterations;
 
@@ -251,14 +253,13 @@ namespace PLUGIN_NAMESPACE
 		TFCuda::set_pitch(pitchSize);
 		
 		// Create tensor input data to fulfill graph conditions, could maybe refactored later
-		session->zero_input = new TF::Tensor(TF::DT_FLOAT, TF::TensorShape({ 1, session->texture_width, session->texture_height, NUMBER_OF_CHANNELS }));
+		session->zero_input = new TF::Tensor(TF::DT_FLOAT, TF::TensorShape({ 1, session->texture_height, session->texture_width, 4 }));
 
 		// Create a new Tensorflow Session
 		TF::SessionOptions options = TF::SessionOptions();
 		options.config.mutable_gpu_options()->set_allow_growth(true);
-		options.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(0.5);
-		session->tf_session = NewSession(options);
-		read_tf_graph(graph_name, 1, &session->tf_graph);
+		session->tf_session = TF::NewSession(options);
+		read_tf_graph(session->tf_graph_name, 0, &session->tf_graph);
 		TF::Status status = session->tf_session->Create(session->tf_graph);
 		if (!status.ok()) {
 			_api._logging->error(get_name(), status.ToString().c_str());
@@ -367,7 +368,7 @@ namespace PLUGIN_NAMESPACE
 			cudaMemcpy2DFromArray(TFCuda::get_depth_memory_pointer(), TFCuda::get_pitch(), session->depth_array, 0, 0, session->texture_width * sizeof(float), session->texture_height, cudaMemcpyDeviceToDevice);
 			checkCUDAError("cudaMemcpy2DFromArray() failed");
 
-			std::vector<std::pair<std::string, tensorflow::Tensor>> inputs = { { "input", *session->zero_input } };
+			std::vector<std::pair<std::string, tensorflow::Tensor>> inputs = { { "image_data", *session->zero_input } };
 			std::vector<TF::Tensor> out_tensors;
 
 #ifdef MEASURE_TIME
@@ -385,6 +386,9 @@ namespace PLUGIN_NAMESPACE
 				return;
 			}
 
+			_api._logging->info(get_name(), _api._error->eprintf("Successfully executed iteration number: %i", session->iterations_done));
+
+
 #ifdef PRINT_RESULTS
 			// Prints the first 500 tensor values, this requires the output operator to run on the host
 			if (session->iterations_done == 1)
@@ -398,7 +402,8 @@ namespace PLUGIN_NAMESPACE
 				}
 			}
 #endif
-			cudaMemcpy2DToArray(session->output_array, 0, 0, TFCuda::get_output_memory_pointer(), TFCuda::get_pitch(), session->texture_width * NUMBER_OF_CHANNELS * sizeof(unsigned char), session->texture_height, cudaMemcpyDeviceToDevice);
+
+			cudaMemcpy2DToArray(session->output_array, 0, 0, TFCuda::get_output_memory_pointer(), TFCuda::get_pitch(), session->texture_width * sizeof(float), session->texture_height, cudaMemcpyDeviceToDevice);
 			checkCUDAError("cudaMemcpy2DToArray failed");
 
 			cudaDeviceSynchronize();
@@ -419,6 +424,28 @@ namespace PLUGIN_NAMESPACE
 		if (cudaSuccess != err)
 		{
 			_api._logging->error(get_name(), _api._error->eprintf("%s(%i) : getLastCudaError() CUDA error : %s : (%d) %s.\n", file, line, errorMessage, static_cast<int>(err), cudaGetErrorString(err)));
+
+			if (session)
+			{
+				cudaGraphicsUnmapResources(1, &session->depth_resource);
+				cudaGraphicsUnregisterResource(session->depth_resource);
+				cudaFree(TFCuda::get_depth_memory_pointer());
+				session->depth_texture->Release();
+
+				cudaGraphicsUnmapResources(1, &session->input_resource);
+				cudaGraphicsUnregisterResource(session->input_resource);
+				cudaFree(TFCuda::get_input_memory_pointer());
+				session->input_texture->Release();
+
+				cudaGraphicsUnmapResources(1, &session->output_resource);
+				cudaGraphicsUnregisterResource(session->output_resource);
+				cudaFree(TFCuda::get_output_memory_pointer());
+				session->output_texture->Release();
+
+				MAKE_DELETE(get_allocator(), session);
+				session = nullptr;
+			}
+
 			return true;
 		}
 		return false;
