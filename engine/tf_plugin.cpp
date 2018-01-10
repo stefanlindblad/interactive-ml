@@ -258,6 +258,8 @@ namespace PLUGIN_NAMESPACE
 		// Create a new Tensorflow Session
 		TF::SessionOptions options = TF::SessionOptions();
 		options.config.mutable_gpu_options()->set_allow_growth(true);
+		options.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(0.95f);
+
 		session->tf_session = TF::NewSession(options);
 		read_tf_graph(session->tf_graph_name, 0, &session->tf_graph);
 		TF::Status status = session->tf_session->Create(session->tf_graph);
