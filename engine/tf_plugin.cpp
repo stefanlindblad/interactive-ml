@@ -143,7 +143,7 @@ namespace PLUGIN_NAMESPACE
 		_compiler_api_initialized = false;
 	}
 
-	bool TFPlugin::read_tf_graph(const std::string &path, unsigned mode, TF::GraphDef *def)
+	TF::Status TFPlugin::read_tf_graph(const std::string &path, unsigned mode, TF::GraphDef *def)
 	{
 		TF::Status status;
 		if (mode == 0)
@@ -151,13 +151,7 @@ namespace PLUGIN_NAMESPACE
 		else if (mode == 1)
 			status = TF::ReadTextProto(TF::Env::Default(), path, def);
 
-		if (!status.ok())
-		{
-			_api._logging->error(get_name(), status.ToString().c_str());
-			return false;
-		}
-
-		return true;
+		return status;
 	}
 
 	// Exposed to LUA
@@ -258,14 +252,20 @@ namespace PLUGIN_NAMESPACE
 		// Create a new Tensorflow Session
 		TF::SessionOptions options = TF::SessionOptions();
 		options.config.mutable_gpu_options()->set_allow_growth(true);
-		options.config.mutable_gpu_options()->set_per_process_gpu_memory_fraction(0.95f);
 
 		session->tf_session = TF::NewSession(options);
-		read_tf_graph(session->tf_graph_name, 0, &session->tf_graph);
-		TF::Status status = session->tf_session->Create(session->tf_graph);
+		TF::Status status = read_tf_graph(session->tf_graph_name, 0, &session->tf_graph);
 		if (!status.ok()) {
 			_api._logging->error(get_name(), status.ToString().c_str());
+			return;
 		}
+
+		status = session->tf_session->Create(session->tf_graph);
+		if (!status.ok()) {
+			_api._logging->error(get_name(), status.ToString().c_str());
+			return;
+		}
+
 		session->initialized = true;
 	}
 
