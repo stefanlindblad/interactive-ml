@@ -19,22 +19,21 @@ def freeze_graph(graph_structure_path, variable_checkpoint_path, frozen_graph_na
 def write_output_file(filename, data):
     height = data.shape[0]
     width = data.shape[1]
-    print(height)
-    print(width)
     exr = OpenEXR.OutputFile(filename, OpenEXR.Header(width, height))
     output = array.array('f', [ 0.0 ] * (height * width))
-    alpha = array.array('f', [ 1.0 ] * (height * width))
+    alpha = array.array('f', [ 1.0 ] * (height * width)).tostring()
     for y in range(height):
         for x in range(width):
-            pos = y * width + x
-            output[pos] = data[y, x]
-    exr.writePixels({'R': output.tostring(), 'G': output.tostring(), 'B': output.tostring(), 'A': alpha.tostring()})
+            output[y * width + x] = data[y, x]
+    output = output.tostring()
+    exr.writePixels({'R': output, 'G': output, 'B': output, 'A': alpha})
     exr.close()
 
 def write_output_array(filename, data):
     height = IMG_HEIGHT
     width = IMG_WIDTH
     output = array.array('f', data).tostring()
+    alpha = array.array('f', [ 1.0 ] * (height * width)).tostring()
     exr = OpenEXR.OutputFile(filename, OpenEXR.Header(width, height))
-    exr.writePixels({'R': output, 'G': output, 'B': output, 'A': output})
+    exr.writePixels({'R': output, 'G': output, 'B': output, 'A': alpha})
     exr.close()
