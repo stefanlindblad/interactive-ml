@@ -247,7 +247,7 @@ namespace PLUGIN_NAMESPACE
 		TFCuda::set_pitch(pitchSize);
 		
 		// Create tensor input data to fulfill graph conditions, could maybe refactored later
-		session->zero_input = new TF::Tensor(TF::DT_FLOAT, TF::TensorShape({ 1, session->texture_height, session->texture_width, 4 }));
+		session->zero_input = new TF::Tensor(TF::DT_FLOAT, TF::TensorShape({ 1, session->texture_width, session->texture_height, 4 }));
 
 		// Create a new Tensorflow Session
 		TF::SessionOptions options = TF::SessionOptions();

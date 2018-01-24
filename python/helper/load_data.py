@@ -41,3 +41,18 @@ def read_truth_file(truth_filename):
     FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
     T = array.array('f', img_file.channel("R", FLOAT)).tolist()
     return T
+
+def read_input_files(input_filenames):
+    for filename in input_filenames:
+        img_file = OpenEXR.InputFile(filename)
+        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+    R,G,B = [ array.array('f', img_file.channel(Chan, FLOAT)).tolist() for Chan in ("R", "G", "B") ]
+    D = array.array('f', img_file.channel("depth.V", FLOAT)).tolist()
+    return R,G,B,D
+
+def read_truth_files(truth_filenames):
+    for filename in truth_filenames:
+        img_file = OpenEXR.InputFile(filename)
+        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+    T = array.array('f', img_file.channel("R", FLOAT)).tolist()
+    return T
