@@ -188,10 +188,10 @@ namespace PLUGIN_NAMESPACE
 
 		desc.Format = DXGI_FORMAT_R8G8B8A8_UINT;
 		device->CreateTexture2D(&desc, nullptr, &session->input_texture);
-		device->CreateTexture2D(&desc, nullptr, &session->output_texture);
 
 		desc.Format = DXGI_FORMAT_R32_FLOAT;
 		device->CreateTexture2D(&desc, nullptr, &session->depth_texture);
+		device->CreateTexture2D(&desc, nullptr, &session->output_texture);
 
 		cudaGraphicsD3D11RegisterResource(&session->input_resource, session->input_texture, cudaGraphicsRegisterFlagsNone);
 		checkCUDAError("cudaGraphicsD3D11RegisterResource() failed");

@@ -81,12 +81,12 @@ __global__ void InteractiveDepthInputKernel(int width, int height, size_t pitch,
 }
 
 template <typename T>
-__global__ void InteractiveOutputKernel(int width, int height, size_t pitch, const T* in, unsigned char* out) {
+__global__ void InteractiveOutputKernel(int width, int height, size_t pitch, const T* in, float* out) {
 
 	int x = blockIdx.x*blockDim.x + threadIdx.x;
 	int y = blockIdx.y*blockDim.y + threadIdx.y;
-	const T *src;
-	unsigned char *dest;
+	const float *cuda_src;
+	float *dest;
 
 	// in the case where, due to quantization into grids, we have
 	// more threads than pixels, skip the threads which don't
@@ -94,13 +94,10 @@ __global__ void InteractiveOutputKernel(int width, int height, size_t pitch, con
 	if (x >= width || y >= height) return;
 
 	// get a pointer to the pixel at (x,y)
-	src = (in + y*pitch) + x;
-	dest = (out + y*pitch) + x;
+	cuda_src = ( ((float*) in) + y*pitch / 4) + x;
+	dest = (out + y*pitch/4) + x;
 
-	dest[0] = (unsigned char) (src[0] * 255.0f);
-	dest[1] = (unsigned char) (src[1] * 255.0f);
-	dest[2] = (unsigned char) (src[2] * 255.0f);
-	dest[3] = (unsigned char) (src[3] * 255.0f);
+	dest[0] = (T) cuda_src[0];
 }
 
 template <typename T>
@@ -159,7 +156,7 @@ struct InteractiveOutputFunctor<Eigen::GpuDevice, T> {
 	cudaError_t operator()(const Eigen::GpuDevice& d, int width, int height, size_t pitch, const T* in, void* out) {
 		dim3 blockSize = dim3(KERNEL_SIZE, KERNEL_SIZE);
 		dim3 threadSize = dim3((width + blockSize.x - 1) / blockSize.x, (height + blockSize.y - 1) / blockSize.y);
-		InteractiveOutputKernel<T><<<blockSize, threadSize>>>(width, height, pitch, in, (unsigned char *) out);
+		InteractiveOutputKernel<T><<<blockSize, threadSize>>>(width, height, pitch, in, (float *) out);
 		return cudaGetLastError();
 	}
 };

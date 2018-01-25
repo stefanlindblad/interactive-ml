@@ -247,7 +247,7 @@ public:
 			TF::errors::Unavailable("Interactive Output expects 4 dimensions (batch, width, height, channels)"));
 
 		OP_REQUIRES(context, output_tensor->shape().dim_size(3) == 1,
-			TF::errors::Unavailable("Interactive Input expects 1 channel"));
+			TF::errors::Unavailable("Interactive Output expects 1 channel"));
 
 		OP_REQUIRES(context, _memory != nullptr,
 			TF::errors::Unavailable("Could not get texture memory"));
