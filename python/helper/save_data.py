@@ -21,12 +21,11 @@ def write_output_file(filename, data):
     height = data.shape[1]
     exr = OpenEXR.OutputFile(filename, OpenEXR.Header(width, height))
     output = array.array('f', [ 0.0 ] * (height * width))
-    alpha = array.array('f', [ 1.0 ] * (height * width)).tostring()
     for y in range(height):
         for x in range(width):
             output[y * width + x] = data[x, y]
     output = output.tostring()
-    exr.writePixels({'R': output, 'G': output, 'B': output, 'A': alpha})
+    exr.writePixels({'R': output, 'G': output, 'B': output})
     exr.close()
 
 def write_output_array(filename, data):
@@ -38,12 +37,11 @@ def write_output_array(filename, data):
             struct[x, y] = data[y * width + x]
     exr = OpenEXR.OutputFile(filename, OpenEXR.Header(width, height))
     output = array.array('f', [ 0.0 ] * (height * width))
-    alpha = array.array('f', [ 1.0 ] * (height * width)).tostring()
     for y in range(height):
         for x in range(width):
             output[y * width + x] = struct[x, y]
     output = output.tostring()
-    exr.writePixels({'R': output, 'G': output, 'B': output, 'A': alpha})
+    exr.writePixels({'R': output, 'G': output, 'B': output})
     exr.close()
 
 def write_output_array2(filename, r, g, b, d):
@@ -64,7 +62,6 @@ def write_output_array2(filename, r, g, b, d):
     output2 = array.array('f', [ 0.0 ] * (height * width))
     output3 = array.array('f', [ 0.0 ] * (height * width))
     output4 = array.array('f', [ 0.0 ] * (height * width))
-    alpha = array.array('f', [ 1.0 ] * (height * width)).tostring()
     for y in range(height):
         for x in range(width):
             output1[y * width + x] = struct[x, y, 0]
@@ -75,6 +72,6 @@ def write_output_array2(filename, r, g, b, d):
     output2 = output2.tostring()
     output3 = output3.tostring()
     output4 = output4.tostring()
-    exr.writePixels({'R': output1, 'G': output2, 'B': output3, 'A': alpha, 'depth.V': output4})
+    exr.writePixels({'R': output1, 'G': output2, 'B': output3, 'depth.V': output4})
     exr.close()
 
