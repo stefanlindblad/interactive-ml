@@ -36,7 +36,6 @@ def write_output_array(filename, data):
     for y in range(height):
         for x in range(width):
             struct[x, y] = data[y * width + x]
-
     exr = OpenEXR.OutputFile(filename, OpenEXR.Header(width, height))
     output = array.array('f', [ 0.0 ] * (height * width))
     alpha = array.array('f', [ 1.0 ] * (height * width)).tostring()
