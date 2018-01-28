@@ -29,12 +29,7 @@ def read_truth_data(t_channel):
             data[0, x, y, 0] = t_channel[pos]
     return data
 
-
-R,G,B,D = read_input_file("Input_pot_512.exr")
-T = read_truth_file("AO_pot_512.exr")
-    
-
-def read_input_set(models, count, path):
+def read_input_set(modellocation, count, path):
     near_range = 0.1
     far_range = 1000.0
     models = []
@@ -65,7 +60,7 @@ def read_input_set(models, count, path):
         model_count += 1
     return data
 
-def read_truth_set(models, count, path):
+def read_truth_set(modellocation, count, path):
     models = []
 
     with open(modellocation) as f:

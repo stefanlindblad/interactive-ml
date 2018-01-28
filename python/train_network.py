@@ -46,7 +46,7 @@ result, image_data, ground_truth = build_nnao_network(print_shapes=False)
 mse = tf.losses.mean_squared_error(labels=ground_truth, predictions=result)
 train = tf.train.GradientDescentOptimizer(0.01).minimize(mse)
 
-train_graph(True, 0.001, 600, 10, "learn_models.txt", "D:/train_data/")
+train_network(True, 0.001, 7, 4, "learn_models2.txt", "D:/train_data2/")
 
 #tf.train.write_graph(sess.graph_def, '.', 'nnao_graph.pbtxt')
 #export_frozen_graph(timecode, sess)
