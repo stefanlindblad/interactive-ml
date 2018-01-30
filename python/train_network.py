@@ -14,7 +14,7 @@ def train_network(from_beginning, min_error, data_set_size, epochs, models, trai
         saver.restore(sess, checkpoint_path)
 
     error = 1
-    epoch = 0
+    epoch = 12
     count = 0
 
     # Training Loop
@@ -27,16 +27,18 @@ def train_network(from_beginning, min_error, data_set_size, epochs, models, trai
                 now = datetime.datetime.now()
                 path = "checkpoints/train_nnao_" + str(now.day) + "_" + str(now.month) + "_" + str(now.hour) + "_" + str(now.minute) + "_count_" + str(count) + ".ckpt"
                 saver.save(sess, path)
-                print("Count: ", Count, "with MSE of: ", error, "saved as: ", path)
-            print("Done with Count: [", count, "/", data_set_size, "] with an MSE of: ", error)
+                status_string = "Count: " + str(count) + " with MSE of: " + str(error) + " saved as: " + str(path)
+                print(status_string.encode("utf-8").decode("ascii"))
+            count_string = "Done with Count: [" + str(count) + "/" + str(data_set_size) + "] with an MSE of: " + str(error)
+            print(count_string.encode("utf-8").decode("ascii"))
         count = 0
         epoch += 1
         saver = tf.train.Saver()
         now = datetime.datetime.now()
         path = "checkpoints/train_nnao_" + str(now.day) + "_" + str(now.month) + "_" + str(now.hour) + "_" + str(now.minute) + "_epoch_" + str(epoch) + ".ckpt"
-        saver.save(sess, path)
-        print("Epoch: ", epoch, "with MSE of: ", error, "saved as: ", path)
-
+        saver.save(sess, path.encode("utf-8").decode("ascii"))
+        epoch_string = "Epoch: " + str(epoch) + " with MSE of: " + str(error) + " saved as: " + path
+        print(epoch_string.encode("utf-8").decode("ascii"))
 
 ####################################
 
@@ -44,9 +46,12 @@ def train_network(from_beginning, min_error, data_set_size, epochs, models, trai
 sess = tf.Session()
 result, image_data, ground_truth = build_nnao_network(print_shapes=False)
 mse = tf.losses.mean_squared_error(labels=ground_truth, predictions=result)
-train = tf.train.GradientDescentOptimizer(0.01).minimize(mse)
+train = tf.train.GradientDescentOptimizer(0.005).minimize(mse)
 
-train_network(True, 0.001, 7, 4, "learn_models2.txt", "D:/train_data2/")
+learn_models = "learn_models.txt"
+train_data = "D:/train_data/"
+checkpoint_path = "checkpoints/train_nnao_29_1_20_34_epoch_12.ckpt"
+train_network(False, 0.0001, 600, 20, learn_models.encode("utf-8").decode("ascii"), train_data.encode("utf-8").decode("ascii"), checkpoint_path.encode("utf-8").decode("ascii"))
 
 #tf.train.write_graph(sess.graph_def, '.', 'nnao_graph.pbtxt')
 #export_frozen_graph(timecode, sess)

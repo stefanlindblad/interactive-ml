@@ -4,9 +4,9 @@ bunny
 castle
 cutter
 gargoyle
+jeep
 medievalbuilding
 microscope
 pallet
 phone
 plant
-tree

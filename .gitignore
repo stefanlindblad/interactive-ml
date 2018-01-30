@@ -1,6 +1,7 @@
 # Build directories and intermediate files
 
 build/
+python/checkpoints
 plugin/sample_project/.stingray-asset-server-directory
 Debug/
 Dev/

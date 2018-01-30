@@ -15,8 +15,10 @@ def convert_folder(foldername):
             R,G,B,D = read_input_file(filename)
             write_output_array2(filename, R, G, B, D)
         count += 1
-        if count % 10 == 0:
-            print("Done with Image " + str(count) + " from " + str(maxcount) + "in folder: " + foldername)
+        if count % 100 == 0:
+            mystring = "Done with Image " + str(count) + " from " + str(maxcount) + " in folder: " + foldername
+            output = mystring.encode("utf-8").decode("ascii")
+            print(output)
 
 def load_models(modellocation):
     models = []
@@ -29,7 +31,7 @@ def load_models(modellocation):
 
 ############################
 
-modellocation = "models.txt"
+modellocation = "verify_models.txt"
 datalocation = "D:/train_data/"
 
 modellist = load_models(modellocation)
