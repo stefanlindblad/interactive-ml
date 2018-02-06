@@ -52,6 +52,3 @@ learn_models = "learn_models.txt"
 train_data = "D:/train_data/"
 checkpoint_path = "checkpoints/train_nnao_29_1_20_34_epoch_12.ckpt"
 train_network(False, 0.0001, 600, 20, learn_models.encode("utf-8").decode("ascii"), train_data.encode("utf-8").decode("ascii"), checkpoint_path.encode("utf-8").decode("ascii"))
-
-#tf.train.write_graph(sess.graph_def, '.', 'nnao_graph.pbtxt')
-#export_frozen_graph(timecode, sess)
