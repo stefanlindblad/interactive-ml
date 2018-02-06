@@ -53,7 +53,7 @@ namespace PLUGIN_NAMESPACE
 		static int can_refresh(uint64_t type);
 		static TF::Status read_tf_graph(const std::string &path, unsigned mode, TF::GraphDef *def);
 		static void end_tf_execution();
-		static void run_tf_graph(const char *graph_name, const char *node_name, unsigned iterations);
+		static void run_tf_graph(const char *graph_name, const char *node_name, unsigned iterations, bool endless);
 		static bool getLastCudaError(const char *errorMessage, const char *file, const int line);
 		static void render(RenderDevicePluginArguments *arguments);
 		static void end_frame();

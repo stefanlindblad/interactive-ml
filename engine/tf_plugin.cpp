@@ -37,6 +37,7 @@ namespace PLUGIN_NAMESPACE
 	struct Graph_Execution_Session
 	{
 		bool initialized = false;
+		bool endless = false;
 		unsigned texture_width;
 		unsigned texture_height;
 		unsigned iterations_done;
@@ -155,7 +156,7 @@ namespace PLUGIN_NAMESPACE
 	}
 
 	// Exposed to LUA
-	void TFPlugin::run_tf_graph(const char *graph_name, const char *node, unsigned iterations)
+	void TFPlugin::run_tf_graph(const char *graph_name, const char *node, unsigned iterations, bool endless)
 	{
 		if (normals_render_target == nullptr || depth_render_target == nullptr || nnao_render_target == nullptr)
 		{
@@ -168,6 +169,7 @@ namespace PLUGIN_NAMESPACE
 		session->tf_graph_name = graph_name;
 		session->iterations_done = 0;
 		session->iterations_max = iterations;
+		session->endless = endless;
 
 		ID3D11Device* device = reinterpret_cast<ID3D11Device*>(_api._render_interface->device());
 		ID3D11DeviceContext *immediate_context;
@@ -360,6 +362,13 @@ namespace PLUGIN_NAMESPACE
 			ID3D11DeviceContext *immediate_context;
 			device->GetImmediateContext(&immediate_context);
 
+			cudaMemset(TFCuda::get_input_memory_pointer(), 0, TFCuda::get_pitch() * session->texture_height);
+			checkCUDAError("cudaMemset() failed");
+			cudaMemset(TFCuda::get_depth_memory_pointer(), 0, TFCuda::get_pitch() * session->texture_height);
+			checkCUDAError("cudaMemset() failed");
+			cudaMemset(TFCuda::get_output_memory_pointer(), 0, TFCuda::get_pitch() * session->texture_height);
+			checkCUDAError("cudaMemset() failed");
+
 			// Copy the normals texture data (R8G8B8A8) into CUDA memory
 			immediate_context->CopySubresourceRegion(session->input_texture, 0, 0, 0, 0, normals_render_target, 0, nullptr);
 			cudaMemcpy2DFromArray(TFCuda::get_input_memory_pointer(), TFCuda::get_pitch(), session->input_array, 0, 0, session->texture_width * sizeof(unsigned char) * NUMBER_OF_CHANNELS, session->texture_height, cudaMemcpyDeviceToDevice);
@@ -388,9 +397,6 @@ namespace PLUGIN_NAMESPACE
 				return;
 			}
 
-			_api._logging->info(get_name(), _api._error->eprintf("Successfully executed iteration number: %i", session->iterations_done));
-
-
 #ifdef PRINT_RESULTS
 			// Prints the first 500 tensor values, this requires the output operator to run on the host
 			if (session->iterations_done == 1)
@@ -404,7 +410,6 @@ namespace PLUGIN_NAMESPACE
 				}
 			}
 #endif
-
 			cudaMemcpy2DToArray(session->output_array, 0, 0, TFCuda::get_output_memory_pointer(), TFCuda::get_pitch(), session->texture_width * sizeof(float), session->texture_height, cudaMemcpyDeviceToDevice);
 			checkCUDAError("cudaMemcpy2DToArray failed");
 
@@ -413,9 +418,11 @@ namespace PLUGIN_NAMESPACE
 
 			immediate_context->CopySubresourceRegion(nnao_render_target, 0, 0, 0, 0, session->output_texture, 0, nullptr);
 			++session->iterations_done;
-
-			if (session->iterations_done >= session->iterations_max)
+			
+			if (!session->endless && session->iterations_done >= session->iterations_max)
 				end_tf_execution();
+
+			step_identifier = ReceivingNormals;
 		}
 	}
 

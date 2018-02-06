@@ -5,6 +5,7 @@
 #define COMPILER_MSVC
 #define NOMINMAX
 #define PROTOBUF_USE_DLLS
+#define EIGEN_USE_GPU
 #define EIGEN_USE_THREADS
 
 #include "tf_cuda.h"
