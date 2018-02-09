@@ -5,6 +5,7 @@ namespace PLUGIN_NAMESPACE {
 namespace {
 
 	static bool nnao_preview = false;
+	static bool nnao_multiply = false;
 
 	int run_graph(struct lua_State *L)
 	{
@@ -34,6 +35,14 @@ namespace {
 		return 0;
 	}
 
+	int toogle_nnao_multiply(struct lua_State *L)
+	{
+		nnao_multiply = !nnao_multiply;
+		static SPF::ConstConfigRoot setting = { SPF::const_config::BOOL, nnao_multiply };
+		TFPlugin::get_api()._render_interface->set_render_setting("nnao_scene_combine", &setting);
+		return 0;
+	}
+
 } // anonymous namespace
 
 void setup_lua()
@@ -42,6 +51,7 @@ void setup_lua()
 	api._lua->add_module_function("Tensorflow", "run_graph", run_graph);
 	api._lua->add_module_function("Tensorflow", "set_camera", set_camera);
 	api._lua->add_module_function("Tensorflow", "toogle_nnao_preview", toogle_nnao_preview);
+	api._lua->add_module_function("Tensorflow", "toogle_nnao_multiply", toogle_nnao_multiply);
 }
 
 } // PLUGIN_NAMESPACE
