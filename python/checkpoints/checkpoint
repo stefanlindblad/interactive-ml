@@ -1,2 +1,2 @@
-model_checkpoint_path: "train_nnao_29_1_20_34_epoch_12.ckpt"
-all_model_checkpoint_paths: "train_nnao_29_1_20_34_epoch_12.ckpt"
+model_checkpoint_path: "train_nnao_13_2_17_41_count_60.ckpt"
+all_model_checkpoint_paths: "train_nnao_13_2_17_41_count_60.ckpt"

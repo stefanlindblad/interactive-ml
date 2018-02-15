@@ -60,6 +60,33 @@ def read_input_set(modellocation, count, path):
         model_count += 1
     return data
 
+def read_input_set_slim(modellocation, count, path):
+    near_range = 0.1
+    far_range = 1000.0
+    models = []
+
+    with open(modellocation) as f:
+        for line in f:
+            if line.endswith("\n"):
+                line = line[:-1]
+            models.append(line)
+
+    model_count = 0
+    data = np.zeros([len(models), IMG_WIDTH, IMG_HEIGHT, 1], dtype=np.float32)
+    for model in models:
+        input_filename = path + model + "/input_" + model + "_" + str(count) + ".exr"
+        img_file = OpenEXR.InputFile(input_filename)
+        FLOAT = Imath.PixelType(Imath.PixelType.FLOAT)
+        D = array.array('f', img_file.channel("depth.V", FLOAT)).tolist()
+        value_range = far_range - near_range
+        for y in range(IMG_HEIGHT):
+            for x in range(IMG_WIDTH):
+                pos = y * IMG_WIDTH + x
+                normalized_d = (D[pos] - near_range) / value_range
+                data[model_count, x, y, 0] = normalized_d
+        model_count += 1
+    return data
+
 def read_truth_set(modellocation, count, path):
     models = []
 

@@ -1,8 +1,8 @@
 import tensorflow as tf
 import numpy as np
-from nnao_network import build_nnao_network
+from nnao_network import build_nnao_network, build_nnao_network_slim
 from export_network import export_frozen_graph
-from helper.load_data import read_input_data, read_truth_data, read_input_file, read_truth_file, read_input_set, read_truth_set
+from helper.load_data import read_input_data, read_truth_data, read_input_file, read_truth_file, read_input_set, read_truth_set, read_input_set_slim
 from helper.save_data import write_output_file, write_output_array, write_output_array2
 import datetime
 
@@ -14,13 +14,13 @@ def train_network(from_beginning, min_error, data_set_size, epochs, models, trai
         saver.restore(sess, checkpoint_path)
 
     error = 1
-    epoch = 12
+    epoch = 0
     count = 0
 
     # Training Loop
     while error > min_error and epoch < epochs:
         while count < data_set_size:
-            error, _ = sess.run([mse, train], feed_dict={image_data: read_input_set(models, count, train_path), ground_truth: read_truth_set(models, count, train_path)})
+            error, _ = sess.run([mse, train], feed_dict={image_data: read_input_set_slim(models, count, train_path), ground_truth: read_truth_set(models, count, train_path)})
             count += 1
             if count % 20 == 0:
                 saver = tf.train.Saver()
@@ -44,14 +44,15 @@ def train_network(from_beginning, min_error, data_set_size, epochs, models, trai
 
 # Creation of the network and training structures
 sess = tf.Session()
-result, image_data, ground_truth = build_nnao_network(print_shapes=False)
+#result, image_data, ground_truth = build_nnao_network(print_shapes=False)
+result, image_data, ground_truth = build_nnao_network_slim(print_shapes=False)
 mse = tf.losses.mean_squared_error(labels=ground_truth, predictions=result)
-train = tf.train.GradientDescentOptimizer(0.005).minimize(mse)
+train = tf.train.GradientDescentOptimizer(0.01).minimize(mse)
 
 learn_models = "learn_models.txt"
 train_data = "D:/train_data/"
-checkpoint_path = "checkpoints/train_nnao_29_1_20_34_epoch_12.ckpt"
-train_network(False, 0.0001, 600, 20, learn_models.encode("utf-8").decode("ascii"), train_data.encode("utf-8").decode("ascii"), checkpoint_path.encode("utf-8").decode("ascii"))
+checkpoint_path = "checkpoints/train_nnao_30_1_13_30_epoch_20.ckpt"
+train_network(True, 0.0001, 600, 100, learn_models.encode("utf-8").decode("ascii"), train_data.encode("utf-8").decode("ascii"), checkpoint_path.encode("utf-8").decode("ascii"))
 
 #tf.train.write_graph(sess.graph_def, '.', 'nnao_graph.pbtxt')
 #export_frozen_graph(timecode, sess)

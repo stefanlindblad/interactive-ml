@@ -10,3 +10,4 @@ microscope
 pallet
 phone
 plant
+tree
