@@ -20,8 +20,8 @@ def test_network(input_file, output_file, checkpoint_path):
 sess = tf.Session()
 result, image_data, _ = build_nnao_network(print_shapes=False)
 
-input_file = "Input_108.exr"
-output_file = "Output_108.exr"
-checkpoint_path = "checkpoints/train_nnao_29_1_20_34_epoch_12.ckpt"
+input_file = "Input_Castle.exr"
+output_file = "Output_Castle.exr"
+checkpoint_path = "checkpoints/train_nnao_30_1_13_30_epoch_20.ckpt"
 test_network(input_file, output_file, checkpoint_path)
 
