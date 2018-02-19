@@ -28,7 +28,6 @@ plugin/*.map
 *.app
 *.aps
 *.diff
-*.dll
 *.dylib
 *.exe
 *.fxo
