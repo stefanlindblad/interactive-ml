@@ -4,7 +4,7 @@ namespace PLUGIN_NAMESPACE
 {
 	//#define WAITFORDEBUGGER
 	#define checkCUDAError(msg) if(getLastCudaError (msg, __FILE__, __LINE__)) return
-	//#define MEASURE_TIME
+	#define MEASURE_TIME
 	//#define PRINT_RESULTS
 
 	namespace SPF = stingray_plugin_foundation;
