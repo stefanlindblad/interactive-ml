@@ -1,9 +1,10 @@
 Welcome to the Autodesk Interactive ML Plugin
 ============================================================
 
-This repository builds on top of the interactive default plugin (https://github.com/AutodeskGames/stingray-plugin).
-Check the Readme of this Plugin for common questions around installation and building the code.
+This repository builds on top of the interactive default plugin (https://github.com/AutodeskGames/stingray-plugin).  
+Check the Readme of the default plugin for common questions around installation and building the code.
 
+[![Example Video of InteractiveML](https://img.youtube.com/vi/84CORMRR3ik/0.jpg)](https://www.youtube.com/watch?v=84CORMRR3ik)
 
 ## Dependencies
 
